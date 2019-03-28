@@ -1,0 +1,99 @@
+---
+title: "Coding Assignment"
+author: "Xiaoyu Qiao"
+date: "3/26/2019"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE}
+library(knitr)
+# set global chunk options: images will be 7x5 inches
+knitr::opts_chunk$set(fig.width=7, fig.height=5)
+options(digits = 4)
+
+
+## indents are for indenting r code as formatted text
+## They may need to be adjusted depending on your OS
+# if your output looks odd, increase or decrease indent
+indent1 = '    '
+indent2 = '        '
+indent3 = '            '
+indent4 = '      '
+```
+
+```{r p,  warning=F, message=F, fig.height = 2.2, fig.width = 4.5, fig.align = "center"}
+library(mclust)
+library(cluster) 
+library(ggplot2)
+```
+We firstly write a function `getA1` for simulating high-dimensional data (p=1000) with three groups of observations where the number of observations is n=100:
+```{r 1,  warning=F, message=F, fig.height = 2.2, fig.width = 4.5, fig.align = "center"}
+
+getA1 <- function(){
+n_rows = 1000
+n_cols = 100
+
+k=3
+x_mus = c(0,5,5)
+x_sds = c(1,0.1,1)
+y_mus = c(5,5,0)
+y_sds = c(1,0.1,1)
+prop1 = c(0.3,0.5,0.2)
+
+comp1 <- sample(seq_len(k), prob=prop1, size=n_cols, replace=TRUE)
+samples1 <- cbind(rnorm(n=n_cols, mean=x_mus[comp1],sd=x_sds[comp1]),
+                  rnorm(n=n_cols, mean=y_mus[comp1],sd=y_sds[comp1]))
+
+proj <- matrix(rnorm(n_rows* n_cols), nrow=n_rows, ncol=2)
+A1 <- samples1 %*% t(proj)
+A1 <- A1 + rnorm(n_rows* n_cols)
+return (list("data" = A1, "labels" = comp1))
+}
+
+```
+
+We firstly take a look at a single run, and find out the optimal number of clustering; we plot total within groups sum of squares against values of k, we pick k to be the elbow point, which corresponding to $k=3$.
+```{r 2,  warning=F, message=F, fig.height = 3, fig.width = 4, fig.align = "center"}
+set.seed(1)
+
+result = getA1()
+A1=result$data
+
+#function for calculating total within groups sum of squares
+twss <- function(fit){
+return(fit$tot.withinss)
+}
+
+result = data.frame(k=c(2:10),twss=sapply(2:10,function(k){twss(kmeans(A1, k,nstart = 25))}))
+ggplot(data=result, aes(x=k, y=twss)) + geom_line()+geom_point()+ geom_vline(xintercept = 3,linetype = 2)+ ggtitle("Optimal number of clusters")
+
+k.opt=3
+```
+
+We generate simulated high-dimensional data and perform K-means 100 times; and we calculate the adjusted rand index and the total within clusters sum of squares for each run:
+```{r d3,  warning=F, message=F, fig.height = 2.2, fig.width = 4.5, fig.align = "center"}
+metrics <- data.frame(ARI=numeric(0),WSS=numeric(0))
+
+for (i in 1:100) {
+result = getA1()
+A1 = result$data
+lbs = result$labels
+KM = kmeans(A1, k.opt,nstart = 25)
+clusters <- KM$cluster
+new <- data.frame(adjustedRandIndex(clusters, lbs), twss(KM))
+names(new)<-c("ARI","WSS")
+metrics <- rbind(metrics,new)
+}
+metrics
+```
+
+Now we use boxplot and histogram to view the result of adjusted rand index and the total within clusters sum of squares:
+```{r ff2,  warning=F, message=F, fig.height = 6, fig.width = 6, fig.align = "center"}
+par(mfrow=c(2,2))
+hist(metrics$ARI)
+boxplot(metrics$ARI)
+hist(metrics$WSS)
+boxplot(metrics$WSS)
+```
+
+By the result of adjusted rand index, we know our K-means model has great accuracy.
