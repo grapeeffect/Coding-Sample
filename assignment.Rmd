@@ -25,6 +25,8 @@ indent4 = '      '
 library(mclust)
 library(cluster) 
 library(ggplot2)
+library(ggfortify)
+library(cowplot)
 ```
 We firstly write a function `getA1` for simulating high-dimensional data (p=1000) with three groups of observations where the number of observations is n=100:
 ```{r 1,  warning=F, message=F, fig.height = 2.2, fig.width = 4.5, fig.align = "center"}
@@ -54,10 +56,10 @@ return (list("data" = A1, "labels" = comp1))
 
 We firstly take a look at a single run, and find out the optimal number of clustering; we plot total within groups sum of squares against values of k, we pick k to be the elbow point, which corresponding to $k=3$.
 ```{r 2,  warning=F, message=F, fig.height = 3, fig.width = 4, fig.align = "center"}
-set.seed(1)
+set.seed(100)
 
-result = getA1()
-A1=result$data
+sample = getA1()
+A1=sample$data
 
 #function for calculating total within groups sum of squares
 twss <- function(fit){
@@ -70,7 +72,24 @@ ggplot(data=result, aes(x=k, y=twss)) + geom_line()+geom_point()+ geom_vline(xin
 k.opt=3
 ```
 
-We generate simulated high-dimensional data and perform K-means 100 times; and we calculate the adjusted rand index and the total within clusters sum of squares for each run:
+
+To visualizing our cluster result on the sample data, we plot the first two principal components with both coloring on its original labels and on its k-means clustering results.
+```{r b2,  warning=F, message=F, fig.height = 3, fig.width = 6, fig.align = "center"}
+
+data <- sample$data
+labels <- sample$labels
+
+
+a<-autoplot(prcomp(data),size=1,colour = labels,main = "Actual Labels")
+b<-autoplot(prcomp(data),size=1,colour = kmeans(data, k.opt,nstart = 25)$cluster,main ="Assigned Clusters")
+
+plot_grid(a,b, labels = "AUTO")
+```
+We see that using K-means gives a good clustering result.
+
+# Repeat the process 100 times
+
+Now, we generate simulated high-dimensional data and perform K-means 100 times; and to access the accuracy, we calculate the adjusted rand index and the total within clusters sum of squares for each run:
 ```{r d3,  warning=F, message=F, fig.height = 2.2, fig.width = 4.5, fig.align = "center"}
 metrics <- data.frame(ARI=numeric(0),WSS=numeric(0))
 
@@ -97,3 +116,5 @@ boxplot(metrics$WSS)
 ```
 
 By the result of adjusted rand index, we know our K-means model has great accuracy.
+
+
